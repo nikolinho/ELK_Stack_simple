@@ -1,0 +1,102 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+  - name: Check if JAVA is installed
+    command: rpm -q java-1.8.0-openjdk
+    register: java_check
+
+  - name: Print if JAVA is not installed
+    yum: name=java-1.8.0-openjdk state=present
+    when: java_check.stdout.find('is not installed') != -1
+
+  - name: Import Elastic's GPG key
+    shell: rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+  - name: debug specified user's home dir through ansible.env
+    debug: var=ansible_env.HOME
+
+  - name: Download Elasticsearch RPM
+    get_url:
+      url: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.rpm
+      dest: /root/
+      mode: 0777
+
+  - name: Check if elasticsearch is installed
+    command: rpm -q elasticsearch-6.2.3
+    register: elastisearch_check
+
+  - name: install elasticsearch
+    shell: rpm --install /root/elasticsearch-6.2.3.rpm
+    when: elastisearch_check.stdout.find('is not installed') != -1
+
+  - name: systemctl daemon-reload
+    shell: systemctl daemon-reload
+
+  - name: enable elasticsearch
+    service: name=elasticsearch state=started enabled=yes
+
+  - name: Download Kibana RPM
+    get_url:
+      url: https://artifacts.elastic.co/downloads/kibana/kibana-6.2.3-x86_64.rpm
+      dest: /root/
+      mode: 0777
+
+  - name: Check if kibana is installed
+    command: rpm -q kibana-6.2.3
+    register: kibana_check
+
+  - name: install Kibana
+    shell: rpm --install /root/kibana-6.2.3-x86_64.rpm
+    when: kibana_check.stdout.find('is not installed') != -1
+
+  - name: enable and start Kibana
+    service: name=kibana state=started enabled=yes
+
+  - name: Download Filebeat
+    get_url:
+      url: https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-6.2.3-x86_64.rpm
+      dest: /root/
+      mode: 0777
+
+  - name: Check if filebeat is installed
+    command: rpm -q filebeat-6.2.3
+    register: filebeat_check
+    ignore_errors: true
+
+  - name: install Filebeat
+    shell: rpm --install /root/filebeat-6.2.3-x86_64.rpm
+    when: filebeat_check.stdout.find('is not installed') != -1
+
+  - name:   convert timestamp timezones to UTC (1)
+    shell: "sed -i 's/#var.convert_timezone: false/var.convert_timezone: true/' /etc/filebeat/modules.d/system.yml.disabled"
+
+  - name:   convert timestamp timezones to UTC (2)
+    shell: "sed -i 's/var.convert_timezone: false/var.convert_timezone: true/' /etc/filebeat/modules.d/system.yml.disabled"
+
+  - name: Enable the system Filebeat module
+    shell: filebeat modules enable system
+
+  - name: remove the ingest-geoip filter plugin for Elasticsearch ingest node
+    shell: /usr/share/elasticsearch/bin/elasticsearch-plugin remove ingest-geoip
+    ignore_errors: true
+
+  - name: Install the ingest-geoip filter plugin for Elasticsearch ingest node
+    shell: /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-geoip
+
+  - name: Restart Elasticsearch
+    service: name=elasticsearch state=restarted
+
+  - name: Once Elasticsearch starts up, push module assets to Elasticsearch and Kibana
+    shell: filebeat setup
+    ignore_errors: true
+
+  - name: Enable and start Filebeat
+    service: name=filebeat state=started enabled=yes
+
+  - name: Find my public ip
+    uri:
+      url: http://ifconfig.me/ip
+      return_content: yes
+    register: ip_response
+  - debug: msg="Public IP Address ------>      {{ ip_response.content }}:5601       <-------"

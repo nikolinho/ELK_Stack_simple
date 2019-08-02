@@ -1,0 +1,19 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+  - name: Check if JAVA is installed
+    command: rpm -q java-1.8.0-openjdk
+    register: rpm_check
+
+  - name: Print if JAVA is not installed
+    yum: name=java-1.8.0-openjdk state=present
+    when: rpm_check.stdout.find('is not installed') != -1
+
+  - name: Import Elastic's GPG key
+    shell: rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+  - name: Import Elastic's GPG key
+    shell: rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+    

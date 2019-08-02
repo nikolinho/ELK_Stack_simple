@@ -1,0 +1,2 @@
+[master]
+master1 ansible_host=63.33.62.38 ansible_user=cloud_user ansible_password=haos2006-1 ansible_sudo_pass=haos2006-1

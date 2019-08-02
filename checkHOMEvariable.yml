@@ -1,0 +1,6 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+  - name: debug specified user's home dir through ansible.env
+    debug: var=ansible_env.HOME
