@@ -5,8 +5,9 @@
   - name: Check if JAVA is installed
     command: rpm -q java-1.8.0-openjdk
     register: java_check
+    ignore_errors: true
 
-  - name: Print if JAVA is not installed
+  - name: Install JAVA
     yum: name=java-1.8.0-openjdk state=present
     when: java_check.stdout.find('is not installed') != -1
 
@@ -25,6 +26,7 @@
   - name: Check if elasticsearch is installed
     command: rpm -q elasticsearch-6.2.3
     register: elastisearch_check
+    ignore_errors: true
 
   - name: install elasticsearch
     shell: rpm --install /root/elasticsearch-6.2.3.rpm
@@ -45,10 +47,21 @@
   - name: Check if kibana is installed
     command: rpm -q kibana-6.2.3
     register: kibana_check
+    ignore_errors: true
 
   - name: install Kibana
     shell: rpm --install /root/kibana-6.2.3-x86_64.rpm
     when: kibana_check.stdout.find('is not installed') != -1
+
+  - name:   Open WEB access (1)
+    replace:
+      path: /etc/kibana/kibana.yml
+      regexp: '#server.host: "localhost"'
+      replace: 'server.host: "0.0.0.0"'
+    #shell: "sed -i 's/#server.host: "localhost"/server.host: "0.0.0.0"/' /etc/kibana/kibana.yml"
+
+  - name:   Open WEB access (2)
+    shell: "sed -i 's/#server.port: 5601/server.port: 5601/' /etc/kibana/kibana.yml"
 
   - name: enable and start Kibana
     service: name=kibana state=started enabled=yes
